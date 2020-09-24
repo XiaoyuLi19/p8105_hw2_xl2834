@@ -5,3 +5,68 @@ date: "9/24/2020"
 output: github_document
 ---
 
+```{r setup}
+library(tidyverse)
+library(readxl)
+```
+
+## Problem 1
+
+Read the Mr.TrashWheel dataset.
+```{r}
+trash_df = 
+  read_xlsx(
+  "./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx", 
+      sheet = "Mr. Trash Wheel",
+      range = cell_cols("A:N")) %>% 
+  janitor::clean_names() %>% 
+  drop_na(dumpster) %>% 
+mutate(
+  sports_balls = round(sports_balls),
+  sports_balls = as.integer(sports_balls)
+  )
+```
+
+Read precipitation data
+```{r}
+precip_2018 = 
+   read_xlsx(
+     "./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx", 
+     sheet = "2018 Precipitation",
+     skip = 1
+  ) %>%
+  janitor::clean_names() %>% 
+  drop_na(month) %>% 
+  mutate(year = 2018) %>% 
+  relocate(year)
+
+precip_2017 = 
+   read_xlsx(
+     "./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx", 
+     sheet = "2017 Precipitation",
+     skip = 1
+  ) %>%
+  janitor::clean_names() %>% 
+  drop_na(month) %>% 
+  mutate(year = 2017) %>% 
+  relocate(year)
+
+```
+
+
+Combine annual precipitation
+```{r}
+month_df = 
+  tibble(
+    month = 1:12,
+    month_name = month.name
+  )
+
+precip_df =
+  bind_rows(precip_2017, precip_2018)
+
+left_join(precip_df, month_df, by = "month")
+```
+
+This dataset contains information about Mr. Trashwheel trash collector in Baltimore, Maryland. The dataset contains information on year, ...
+There are a total of `r nrow(trash_df)` in the dataset.
