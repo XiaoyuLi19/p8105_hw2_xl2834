@@ -68,5 +68,68 @@ precip_df =
 left_join(precip_df, month_df, by = "month")
 ```
 
-This dataset contains information about Mr. Trashwheel trash collector in Baltimore, Maryland. The dataset contains information on year, ...
-There are a total of `r nrow(trash_df)` in the dataset.
+The dataset trash_df contains information about Mr. Trashwheel trash collector in Baltimore, Maryland. The dataset include variables `r ls(trash_df)`. 
+There are a total of `r nrow(trash_df)` observations in the dataset. The total weight of trash collected is `r sum(trash_df$weight_tons)` tons. The median number of sports balls in a dumpster in 2017 is `r trash_df %>% filter(year == 2017) %>% pull(sports_balls) %>% median()`.
+
+
+The dataset precip_df contains information about precipitation in Baltimore, Maryland in 2017 and 2018. The dataset include variables `r ls(precip_df)`.  The total precipitation in 2018 was `r precip_df %>% filter(year == 2018) %>% pull(total) %>% sum()` inches. There are a total of `r nrow(trash_df)` observations in the dataset.
+
+
+## Problem 2
+
+```{r}
+subway_df = read_csv(
+  "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>% 
+  janitor::clean_names() %>% 
+  select(line, station_name, station_latitude, station_longitude, 
+         route1:route11, entry, vending, entrance_type, ada) %>% 
+  mutate(entry = ifelse(entry == "yes", TRUE, FALSE))
+```
+
+The dataset contains information about subway station in NYC. The dataset include variables `r ls(subway_df)`. I have made the variable names clearer, kept some useful variables and converted a character variable to a logical variable. The dimension of the dataset is 'dim(subway_df)`. The data are still not tidy.
+
+
+```{r}
+
+```
+
+
+There are `r nrow(distinct(subway_df, line, station_name))` distinct stations.
+
+```{r}
+newdf = 
+  distinct(subway_df, line, station_name, .keep_all = TRUE)
+count(newdf)
+```
+
+
+```{r}
+newdf %>%
+  filter(ada == TRUE) %>% 
+  nrow()
+```
+
+#### What proportion of station entrances / exits without vending allow entrance?
+```{r}
+subway_df %>% 
+  filter(vending == "NO") %>% 
+  count()/count(subway_df)
+```
+
+The proportion of station entrances/exits without vending is 9.8%.
+
+
+```{r}
+subway_df %>% 
+  mutate(route8:route11 = as.character(route8:route11))
+
+subway_tidy = 
+  subway_df%>% 
+  pivot_longer(
+    route1:route11,
+    names_to = "route",
+    values_to = "name"
+    
+  )
+```
+
