@@ -124,12 +124,86 @@ subway_df %>%
   mutate(route8:route11 = as.character(route8:route11))
 
 subway_tidy = 
-  subway_df%>% 
+  subway_df %>% 
   pivot_longer(
     route1:route11,
     names_to = "route",
     values_to = "name"
     
   )
+```
+
+
+## Problem 3
+
+#### Step 1
+```{r}
+pols_df = read_csv(
+  "./data/fivethirtyeight_datasets/pols-month.csv") %>% 
+  janitor::clean_names() %>% 
+  separate(mon, into = c("year", "month", "day"), sep = "-") %>% 
+  mutate(month = month.abb[month]) %>% 
+  pivot_longer(c(prez_gop, prez_dem),
+               names_to = "president"
+  ) %>% 
+  mutate(president = substrRight(president, 3))
+```
+
+
+#### Step 2
+```{r}
+snp_df = read_csv(
+  "./data/fivethirtyeight_datasets/snp.csv") %>% 
+  janitor::clean_names() %>% 
+  separate(date, into = c("month", "day", "year"), sep = "/") %>% 
+  mutate(month = month.abb[month]) %>% 
+  relocate(year, month)
+```
+
+#### Step 3
+```{r}
+unemployment_df = read_csv(
+  "./data/fivethirtyeight_datasets/unemployment.csv") %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(
+    jan:dec,
+    names_to = "month",
+    values_to = "percentage"
+  )
+```
+
+#### Join the datasets
+```{r}
+joined_df1 = 
+  left_join(pols_df, snp_df, by = c("year", "month"))
+
+unemployment_df %>% 
+  mutate(year = as.character(year))
+
+result_df =
+  left_join(joined_df1, unemployment_df, by = c("year", "month"))
+```
+Error: Can't join on `x$year` x `y$year` because of incompatible types.
+i `x$year` is of type <character>>.
+i `y$year` is of type <double>>.
+
+
+
+Replace the month from number to month names.
+```{r}
+
+
+
+month_df = 
+  tibble(
+    month = 1:12,
+    month_name = month.name
+  )
+
+pols_df %>% 
+  select(-month)
+
+left_join(pols_df, month_df, by = "month")
+```
 ```
 
