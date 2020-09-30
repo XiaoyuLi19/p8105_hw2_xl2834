@@ -79,88 +79,125 @@ The dataset precip_df contains information about precipitation in Baltimore, Mar
 
 ```{r}
 subway_df = read_csv(
-  "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>% 
+  "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>%
   janitor::clean_names() %>% 
-  select(line, station_name, station_latitude, station_longitude, 
-         route1:route11, entry, vending, entrance_type, ada) %>% 
-  mutate(entry = ifelse(entry == "yes", TRUE, FALSE))
-```
-
-The dataset contains information about subway station in NYC. The dataset include variables `r ls(subway_df)`. I have made the variable names clearer, kept some useful variables and converted a character variable to a logical variable. The dimension of the dataset is 'dim(subway_df)`. The data are still not tidy.
-
-
-```{r}
+  select(line, station_name, station_latitude,station_longitude, route1:route11, entry, vending, entrance_type, ada) %>% 
+  mutate(entry = recode(entry, "YES" = TRUE, "NO" = FALSE))
 
 ```
 
+The dataset contains information about subway station in NYC. The dataset include variables `r ls(subway_df)`. I have made the variable names clearer, kept some useful variables and converted a character variable to a logical variable. The dimension of the dataset is `dim(subway_df)`. The data are still not tidy, because the route information is spreading over 11 columns.
 
-There are `r nrow(distinct(subway_df, line, station_name))` distinct stations.
+#### How many distinct stations are there?
 
 ```{r}
-newdf = 
-  distinct(subway_df, line, station_name, .keep_all = TRUE)
-count(newdf)
+subway_df %>% 
+  distinct(station_name, line) %>% 
+  nrow()
 ```
+There are 465 distinct stations.
 
+#### How many stations are ADA compliant?
 
 ```{r}
-newdf %>%
+subway_df %>%
+  distinct(station_name, line, .keep_all = TRUE) %>%
   filter(ada == TRUE) %>% 
   nrow()
 ```
+84 are ADA compliant.
 
 #### What proportion of station entrances / exits without vending allow entrance?
 ```{r}
-subway_df %>% 
-  filter(vending == "NO") %>% 
-  count()/count(subway_df)
+no_vending = 
+  filter(subway_df, vending == "NO")
+
+no_vending %>% 
+  filter(entry == TRUE) %>% 
+  count()/count(no_vending)
 ```
 
-The proportion of station entrances/exits without vending is 9.8%.
+Among the station entrance/exits without vending, there are 37.7% that allow entrance.
 
+
+#### Reformat the data so that route number and route name are distinct variables.
 
 ```{r}
-subway_df %>% 
-  mutate(route8:route11 = as.character(route8:route11))
+subway_df = 
+  mutate(subway_df,
+    route8 = as.character(route8),
+    route9 = as.character(route9),
+    route10 = as.character(route10),
+    route11 = as.character(route11)
+         )
 
 subway_tidy = 
   subway_df %>% 
   pivot_longer(
     route1:route11,
-    names_to = "route",
-    values_to = "name"
-    
-  )
+    names_to = "route_name",
+    names_prefix = "route",
+    values_to = "route_number"
+    )
 ```
 
+#### How many distinct stations serve the A train?
+```{r}
+subway_tidy %>% 
+  filter(route_number == "A") %>% 
+  distinct(station_name, line) %>% 
+  nrow()
+```
+There are 60.
+
+#### Of the stations that serve the A train, how many are ADA compliant?
+
+```{r}
+subway_tidy %>% 
+  filter(route_number == "A", ada == TRUE) %>% 
+  distinct(station_name, line) %>%
+  nrow()
+```
+
+There are 17.
 
 ## Problem 3
 
-#### Step 1
+#### Step 1 Clean the data in pols-month.csv.
 ```{r}
-pols_df = read_csv(
-  "./data/fivethirtyeight_datasets/pols-month.csv") %>% 
+pols_df = 
+  read_csv("./data/fivethirtyeight_datasets/pols-month.csv") %>% 
   janitor::clean_names() %>% 
   separate(mon, into = c("year", "month", "day"), sep = "-") %>% 
-  mutate(month = month.abb[month]) %>% 
   pivot_longer(c(prez_gop, prez_dem),
-               names_to = "president"
-  ) %>% 
-  mutate(president = substrRight(president, 3))
+               names_to = "president",
+               values_to = "value",
+               names_prefix = "prez_"
+              ) %>% 
+  filter(value != 0) %>% 
+  select(-day, -value) %>% 
+  mutate(month = as.integer(month),
+         year = as.integer(year)) %>% 
+  mutate(month = month.abb[month])
+  
 ```
 
 
-#### Step 2
+#### Step 2 Clean the data in snp.csv using a similar process.
 ```{r}
 snp_df = read_csv(
   "./data/fivethirtyeight_datasets/snp.csv") %>% 
   janitor::clean_names() %>% 
-  separate(date, into = c("month", "day", "year"), sep = "/") %>% 
-  mutate(month = month.abb[month]) %>% 
-  relocate(year, month)
+  separate(date, into = c("month", "day", "year"), sep = "/") %>%
+  select(-day) %>% 
+  relocate(year, month) %>% 
+  mutate(month = as.integer(month),
+         year = as.integer(year)) %>% 
+  mutate(month = month.abb[month])
+  
 ```
 
-#### Step 3
+#### Step 3 Tidy the unemployment data.
 ```{r}
 unemployment_df = read_csv(
   "./data/fivethirtyeight_datasets/unemployment.csv") %>% 
@@ -169,7 +206,8 @@ unemployment_df = read_csv(
     jan:dec,
     names_to = "month",
     values_to = "percentage"
-  )
+  ) %>% 
+    mutate(year = as.integer(year))
 ```
 
 #### Join the datasets
@@ -177,42 +215,20 @@ unemployment_df = read_csv(
 joined_df1 = 
   left_join(pols_df, snp_df, by = c("year", "month"))
 
-unemployment_df %>% 
-  mutate(year = as.character(year))
+unemployment_df = 
+  mutate(unemployment_df, year = as.integer(year))
 
 result_df =
   left_join(joined_df1, unemployment_df, by = c("year", "month"))
 ```
-Error: Can't join on `x$year` x `y$year` because of incompatible types.
-i `x$year` is of type <character>>.
-i `y$year` is of type <double>>.
-
 
 
 The dataset pols_df has `r ncol(pols_df)` variables and `r nrow(pols_df)` observations, and contains information related to the number of national politicians who are democratic or republican at any given time. There are variables showing the number of governors, senators and representatives for each party, and a variable indicating the party of the president at the given time. 
 
-The dataset snp_df has `r ncol(snp_df)` variables and `r nrow(snp_df)` observations, and contains informationabout Standard & Poor’s stock market index (S&P), often used as a representative measure of stock market as a whole.
+The dataset snp_df has `r ncol(snp_df)` variables and `r nrow(snp_df)` observations, and contains information about Standard & Poor’s stock market index (S&P), often used as a representative measure of stock market as a whole.
 
 The dataset unemployment_df has `r ncol(unemployment_df)` variables and `r nrow(unemployment_df)` observations, and shows the unemployment percentages in a given month in a year.
 
-The result dataset has the dimention of `r dim(result_df)`. It includes information about number of governors, senators and representatives in each party, unemployment percentages, and Standard & Poor’s stock market index in year range from `r first(result_df$year)` to `r last(result_df$year)`.
-Replace the month from number to month names.
+The result dataset has the dimension of `r dim(result_df)`. It includes information about number of governors, senators and representatives in each party, unemployment percentages, and Standard & Poor’s stock market index in year ranging from `r first(result_df$year)` to `r last(result_df$year)`.
 
-
-```{r}
-
-
-
-month_df = 
-  tibble(
-    month = 1:12,
-    month_name = month.name
-  )
-
-pols_df %>% 
-  select(-month)
-
-left_join(pols_df, month_df, by = "month")
-```
-```
 
